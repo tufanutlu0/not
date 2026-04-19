@@ -8,7 +8,7 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #000; }
         ::-webkit-scrollbar { display: none; }
-        /* Videoları ayna gibi çevirir (daha doğal görünüm için) */
+        /* Kendi kameranı ayna gibi çevirir (daha doğal görünüm için) */
         .mirror { transform: scaleX(-1); }
     </style>
 </head>
@@ -27,24 +27,24 @@
 
     <footer class="p-6 pb-8 bg-gray-950 border-t border-gray-800 z-10 absolute bottom-0 w-full flex flex-col items-center gap-4 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
         
-        <button id="webcamButton" class="bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 px-8 rounded-full transition-all w-full max-w-sm">
+        <button id="webcamButton" class="bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 px-8 rounded-full transition-all w-full max-w-sm shadow-lg shadow-blue-500/30">
             Kamera ve Mikrofonu Aç
         </button>
 
         <div id="callControls" class="hidden flex-col w-full max-w-sm gap-3">
-            <button id="callButton" class="bg-green-600 hover:bg-green-500 text-white font-medium py-3 px-8 rounded-full transition-all">
+            <button id="callButton" class="bg-green-600 hover:bg-green-500 text-white font-medium py-3 px-8 rounded-full transition-all shadow-lg shadow-green-500/30">
                 Yeni Oda Oluştur
             </button>
             
             <div class="flex gap-2">
-                <input id="callInput" class="flex-1 bg-gray-800 border border-gray-700 rounded-full px-5 py-3 focus:outline-none focus:border-blue-500 text-center" placeholder="Oda Kodunu Gir" />
-                <button id="answerButton" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 px-6 rounded-full transition-all">
+                <input id="callInput" class="flex-1 bg-gray-800 border border-gray-700 rounded-full px-5 py-3 focus:outline-none focus:border-blue-500 text-center placeholder-gray-500" placeholder="Oda Kodunu Gir" />
+                <button id="answerButton" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 px-6 rounded-full transition-all shadow-lg shadow-indigo-500/30">
                     Katıl
                 </button>
             </div>
         </div>
 
-        <button id="hangupButton" class="hidden bg-red-600 hover:bg-red-500 text-white font-medium py-3 px-8 rounded-full transition-all w-full max-w-sm">
+        <button id="hangupButton" class="hidden bg-red-600 hover:bg-red-500 text-white font-medium py-3 px-8 rounded-full transition-all w-full max-w-sm shadow-lg shadow-red-500/30">
             Görüşmeyi Sonlandır
         </button>
 
@@ -54,25 +54,29 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, doc, setDoc, addDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // Senin Firebase Ayarların
+        // Senin Firebase Ayarların (Tamamen sana özel)
         const firebaseConfig = {
             apiKey: "AIzaSyDcUDxYBLp97h5leXJMsFCfCS3pDq2OqaE",
             authDomain: "notlarim-5705d.firebaseapp.com",
             projectId: "notlarim-5705d",
             storageBucket: "notlarim-5705d.firebasestorage.app",
             messagingSenderId: "132462317345",
-            appId: "1:132462317345:web:86c6fb946892e681d6f860"
+            appId: "1:132462317345:web:86c6fb946892e681d6f860",
+            measurementId: "G-NL17KLN1S6"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // WebRTC Sunucuları (Google'ın ücretsiz sunucuları - sadece cihazları tanıştırmak için kullanılır)
-        const servers = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }] };
+        // WebRTC Sunucuları (Cihazları tanıştırmak için)
+        const servers = {
+            iceServers: [
+                { urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }
+            ]
+        };
 
         let pc = new RTCPeerConnection(servers);
         let localStream = null;
-        let remoteStream = null;
 
         const webcamButton = document.getElementById('webcamButton');
         const callButton = document.getElementById('callButton');
@@ -81,24 +85,31 @@
         const hangupButton = document.getElementById('hangupButton');
         const callControls = document.getElementById('callControls');
         const statusText = document.getElementById('statusText');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const webcamVideo = document.getElementById('webcamVideo');
+
+        // SİYAH EKRAN ÇÖZÜMÜ: Karşı tarafın videosu geldiğinde doğrudan HTML oynatıcıya bağla
+        pc.ontrack = (event) => {
+            remoteVideo.srcObject = event.streams[0];
+        };
 
         // 1. Kamera ve Mikrofonu Başlat
         webcamButton.onclick = async () => {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                remoteStream = new MediaStream();
-
+                
+                // Kendi videomuzu ekrana ver
+                webcamVideo.srcObject = localStream;
+                
+                // Videomuzu karşıya göndermek için bağlantıya ekle
                 localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-                pc.ontrack = event => event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
-
-                document.getElementById('webcamVideo').srcObject = localStream;
-                document.getElementById('remoteVideo').srcObject = remoteStream;
 
                 webcamButton.classList.add('hidden');
                 callControls.classList.remove('hidden');
                 statusText.textContent = "Hazır! Bir oda oluştur veya katıl.";
             } catch (error) {
-                alert("Kamera izni reddedildi veya cihaz bulunamadı!");
+                alert("Kamera izni reddedildi! Tarayıcı ayarlarından izin verdiğine emin ol.");
+                console.error("Kamera Hatası:", error);
             }
         };
 
@@ -111,10 +122,12 @@
             const offerCandidates = collection(callDoc, 'offerCandidates');
             const answerCandidates = collection(callDoc, 'answerCandidates');
 
-            callInput.value = callDoc.id; // Oda kodunu ekrana yaz
-            statusText.innerHTML = `Oda Kodun: <span class="text-blue-400 font-bold tracking-widest bg-gray-800 px-2 py-1 rounded">${callDoc.id}</span> (Arkadaşına Gönder)`;
+            callInput.value = callDoc.id; 
+            statusText.innerHTML = `Oda Kodun: <span class="text-blue-400 font-bold tracking-widest bg-gray-800 px-2 py-1 rounded select-all">${callDoc.id}</span>`;
 
-            pc.onicecandidate = event => { event.candidate && addDoc(offerCandidates, event.candidate.toJSON()); };
+            pc.onicecandidate = event => { 
+                event.candidate && addDoc(offerCandidates, event.candidate.toJSON()); 
+            };
 
             const offerDescription = await pc.createOffer();
             await pc.setLocalDescription(offerDescription);
@@ -150,10 +163,12 @@
             const offerCandidates = collection(callDoc, 'offerCandidates');
             const answerCandidates = collection(callDoc, 'answerCandidates');
 
-            pc.onicecandidate = event => { event.candidate && addDoc(answerCandidates, event.candidate.toJSON()); };
+            pc.onicecandidate = event => { 
+                event.candidate && addDoc(answerCandidates, event.candidate.toJSON()); 
+            };
 
             const callData = (await getDoc(callDoc)).data();
-            if (!callData) return alert("Oda bulunamadı!");
+            if (!callData) return alert("Oda bulunamadı! Kodu doğru yazdığına emin ol.");
 
             const offerDescription = callData.offer;
             await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
@@ -172,7 +187,17 @@
 
         // 4. Görüşmeyi Sonlandır
         hangupButton.onclick = () => {
-            window.location.reload(); // En temiz çıkış yolu sayfayı yenilemektir
+            // Kameraları kapat
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (remoteVideo.srcObject) {
+                remoteVideo.srcObject.getTracks().forEach(track => track.stop());
+            }
+            if (pc) pc.close();
+            
+            // Sayfayı yenileyerek sistemi sıfırla
+            window.location.reload(); 
         };
     </script>
 </body>
