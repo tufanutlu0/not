@@ -3,126 +3,177 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bulut Notlarım</title>
+    <title>Bulut Görüşme</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f5f5f7; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #000; }
         ::-webkit-scrollbar { display: none; }
+        /* Videoları ayna gibi çevirir (daha doğal görünüm için) */
+        .mirror { transform: scaleX(-1); }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-8 flex justify-center text-gray-800">
-    <div class="w-full max-w-2xl bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 md:p-10 h-fit">
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Bulut Notlarım ☁️</h1>
-            <span id="status" class="text-xs font-medium px-2.5 py-0.5 rounded bg-yellow-100 text-yellow-800 animate-pulse">Bağlanıyor...</span>
-        </div>
+<body class="min-h-screen flex flex-col text-white">
 
-        <div class="mb-10 relative">
-            <textarea id="noteInput" 
-                class="w-full h-32 p-5 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none text-lg" 
-                placeholder="Her yerden erişebileceğin bir not yaz..."></textarea>
-            <div class="flex justify-end mt-4">
-                <button id="addBtn" class="bg-black hover:bg-gray-800 text-white font-medium py-2.5 px-6 rounded-full transition-all shadow-md active:scale-95 disabled:opacity-50">
-                    Kaydet
+    <header class="p-6 text-center z-10 absolute top-0 w-full bg-gradient-to-b from-black/70 to-transparent">
+        <h1 class="text-2xl font-semibold tracking-tight">Görüntülü Görüşme</h1>
+        <p id="statusText" class="text-gray-300 text-sm mt-1">Kamerayı başlatmak için aşağıdaki butona tıkla</p>
+    </header>
+
+    <main class="flex-1 relative w-full h-full flex justify-center items-center bg-gray-900 overflow-hidden">
+        <video id="remoteVideo" class="absolute w-full h-full object-cover" autoplay playsinline></video>
+        
+        <video id="webcamVideo" class="absolute bottom-24 right-6 w-32 md:w-48 h-48 md:h-72 object-cover bg-gray-800 rounded-2xl shadow-2xl border-2 border-gray-700 mirror z-20" autoplay playsinline muted></video>
+    </main>
+
+    <footer class="p-6 pb-8 bg-gray-950 border-t border-gray-800 z-10 absolute bottom-0 w-full flex flex-col items-center gap-4 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        
+        <button id="webcamButton" class="bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 px-8 rounded-full transition-all w-full max-w-sm">
+            Kamera ve Mikrofonu Aç
+        </button>
+
+        <div id="callControls" class="hidden flex-col w-full max-w-sm gap-3">
+            <button id="callButton" class="bg-green-600 hover:bg-green-500 text-white font-medium py-3 px-8 rounded-full transition-all">
+                Yeni Oda Oluştur
+            </button>
+            
+            <div class="flex gap-2">
+                <input id="callInput" class="flex-1 bg-gray-800 border border-gray-700 rounded-full px-5 py-3 focus:outline-none focus:border-blue-500 text-center" placeholder="Oda Kodunu Gir" />
+                <button id="answerButton" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 px-6 rounded-full transition-all">
+                    Katıl
                 </button>
             </div>
         </div>
 
-        <div id="notesList" class="space-y-4"></div>
-    </div>
+        <button id="hangupButton" class="hidden bg-red-600 hover:bg-red-500 text-white font-medium py-3 px-8 rounded-full transition-all w-full max-w-sm">
+            Görüşmeyi Sonlandır
+        </button>
+
+    </footer>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // Senin projene özel ayarlar buraya eklendi!
+        // Senin Firebase Ayarların
         const firebaseConfig = {
             apiKey: "AIzaSyDcUDxYBLp97h5leXJMsFCfCS3pDq2OqaE",
             authDomain: "notlarim-5705d.firebaseapp.com",
             projectId: "notlarim-5705d",
             storageBucket: "notlarim-5705d.firebasestorage.app",
             messagingSenderId: "132462317345",
-            appId: "1:132462317345:web:86c6fb946892e681d6f860",
-            measurementId: "G-NL17KLN1S6"
+            appId: "1:132462317345:web:86c6fb946892e681d6f860"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        
-        const noteInput = document.getElementById('noteInput');
-        const addBtn = document.getElementById('addBtn');
-        const notesList = document.getElementById('notesList');
-        const statusBadge = document.getElementById('status');
 
-        const q = query(collection(db, "notes"), orderBy("createdAt", "desc"));
-        
-        onSnapshot(q, (snapshot) => {
-            statusBadge.textContent = "Bağlı (Canlı)";
-            statusBadge.className = "text-xs font-medium px-2.5 py-0.5 rounded bg-green-100 text-green-800";
-            
-            notesList.innerHTML = '';
-            if (snapshot.empty) {
-                notesList.innerHTML = '<p class="text-gray-400 text-center py-4">Henüz hiç bulut notu eklemedin.</p>';
-                return;
+        // WebRTC Sunucuları (Google'ın ücretsiz sunucuları - sadece cihazları tanıştırmak için kullanılır)
+        const servers = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }] };
+
+        let pc = new RTCPeerConnection(servers);
+        let localStream = null;
+        let remoteStream = null;
+
+        const webcamButton = document.getElementById('webcamButton');
+        const callButton = document.getElementById('callButton');
+        const callInput = document.getElementById('callInput');
+        const answerButton = document.getElementById('answerButton');
+        const hangupButton = document.getElementById('hangupButton');
+        const callControls = document.getElementById('callControls');
+        const statusText = document.getElementById('statusText');
+
+        // 1. Kamera ve Mikrofonu Başlat
+        webcamButton.onclick = async () => {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                remoteStream = new MediaStream();
+
+                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+                pc.ontrack = event => event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+
+                document.getElementById('webcamVideo').srcObject = localStream;
+                document.getElementById('remoteVideo').srcObject = remoteStream;
+
+                webcamButton.classList.add('hidden');
+                callControls.classList.remove('hidden');
+                statusText.textContent = "Hazır! Bir oda oluştur veya katıl.";
+            } catch (error) {
+                alert("Kamera izni reddedildi veya cihaz bulunamadı!");
             }
+        };
 
-            snapshot.forEach((docSnap) => {
-                const note = docSnap.data();
-                const id = docSnap.id;
-                
-                const noteDiv = document.createElement('div');
-                noteDiv.className = 'bg-gray-50 p-5 rounded-2xl border border-gray-100 flex justify-between items-start group hover:bg-gray-100 transition-colors duration-200';
-                
-                const dateObj = note.createdAt ? note.createdAt.toDate() : new Date();
-                const dateStr = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' });
+        // 2. Yeni Oda Oluştur (Arayan Kişi)
+        callButton.onclick = async () => {
+            callControls.classList.add('hidden');
+            hangupButton.classList.remove('hidden');
+            
+            const callDoc = doc(collection(db, 'calls'));
+            const offerCandidates = collection(callDoc, 'offerCandidates');
+            const answerCandidates = collection(callDoc, 'answerCandidates');
 
-                noteDiv.innerHTML = `
-                    <div class="w-full">
-                        <div class="pr-4 whitespace-pre-wrap text-gray-700 text-lg">${note.text}</div>
-                        <div class="text-xs text-gray-400 mt-2 font-medium">${dateStr}</div>
-                    </div>
-                    <button data-id="${id}" class="delete-btn text-red-400 hover:text-red-600 bg-white p-2 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all active:scale-90 shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                    </button>
-                `;
-                notesList.appendChild(noteDiv);
+            callInput.value = callDoc.id; // Oda kodunu ekrana yaz
+            statusText.innerHTML = `Oda Kodun: <span class="text-blue-400 font-bold tracking-widest bg-gray-800 px-2 py-1 rounded">${callDoc.id}</span> (Arkadaşına Gönder)`;
+
+            pc.onicecandidate = event => { event.candidate && addDoc(offerCandidates, event.candidate.toJSON()); };
+
+            const offerDescription = await pc.createOffer();
+            await pc.setLocalDescription(offerDescription);
+            await setDoc(callDoc, { offer: { type: offerDescription.type, sdp: offerDescription.sdp } });
+
+            // Karşı tarafın cevabını bekle
+            onSnapshot(callDoc, snapshot => {
+                const data = snapshot.data();
+                if (!pc.currentRemoteDescription && data?.answer) {
+                    const answerDescription = new RTCSessionDescription(data.answer);
+                    pc.setRemoteDescription(answerDescription);
+                }
             });
 
-            document.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const id = e.target.getAttribute('data-id');
-                    await deleteDoc(doc(db, "notes", id));
+            // Karşı tarafın ağ bağlantı noktalarını bekle
+            onSnapshot(answerCandidates, snapshot => {
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'added') pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
                 });
             });
-        }, (error) => {
-            console.error("Firebase Hatası:", error);
-            statusBadge.textContent = "Bağlantı Koptu";
-            statusBadge.className = "text-xs font-medium px-2.5 py-0.5 rounded bg-red-100 text-red-800";
-        });
+        };
 
-        addBtn.addEventListener('click', async () => {
-            const text = noteInput.value.trim();
-            if (text) {
-                noteInput.value = ''; 
-                try {
-                    await addDoc(collection(db, "notes"), {
-                        text: text,
-                        createdAt: serverTimestamp()
-                    });
-                } catch (e) {
-                    alert("Not kaydedilemedi! Bağlantını kontrol et.");
-                }
-            }
-        });
+        // 3. Odaya Katıl (Aranan Kişi)
+        answerButton.onclick = async () => {
+            const callId = callInput.value.trim();
+            if(!callId) return alert("Lütfen bir oda kodu girin!");
 
-        noteInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                addBtn.click();
-            }
-        });
+            callControls.classList.add('hidden');
+            hangupButton.classList.remove('hidden');
+            statusText.textContent = "Bağlanıyor...";
+
+            const callDoc = doc(db, 'calls', callId);
+            const offerCandidates = collection(callDoc, 'offerCandidates');
+            const answerCandidates = collection(callDoc, 'answerCandidates');
+
+            pc.onicecandidate = event => { event.candidate && addDoc(answerCandidates, event.candidate.toJSON()); };
+
+            const callData = (await getDoc(callDoc)).data();
+            if (!callData) return alert("Oda bulunamadı!");
+
+            const offerDescription = callData.offer;
+            await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
+
+            const answerDescription = await pc.createAnswer();
+            await pc.setLocalDescription(answerDescription);
+            await updateDoc(callDoc, { answer: { type: answerDescription.type, sdp: answerDescription.sdp } });
+
+            onSnapshot(offerCandidates, snapshot => {
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'added') pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+                });
+            });
+            statusText.textContent = "Görüşme Başladı";
+        };
+
+        // 4. Görüşmeyi Sonlandır
+        hangupButton.onclick = () => {
+            window.location.reload(); // En temiz çıkış yolu sayfayı yenilemektir
+        };
     </script>
 </body>
 </html>
