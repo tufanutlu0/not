@@ -191,15 +191,37 @@
             }
         };
 
-        onAuthStateChanged(auth, user => {
+       onAuthStateChanged(auth, (user) => {
             if (user) {
+                // Giriş yapıldıysa paneli göster
                 loginPage.classList.add('hidden');
                 mainDashboard.classList.remove('hidden');
                 setTimeout(() => mainDashboard.classList.replace('opacity-0', 'opacity-100'), 50);
+                
+                userEmailDisplay.textContent = user.email;
+
+                // --- YETKİ KONTROLÜ ---
+                // Muhasebe butonunu buluyoruz
+                const accountingBtn = document.querySelector('[onclick="showModule(\'accounting\')"]');
+                
+                // Buraya senin (yani patronun) e-postasını yazdık
+                const patronEmail = "tufan@yildizkurs.com"; 
+                
+                if (user.email !== patronEmail) {
+                    // Eğer giriş yapan kişi sen değilsen Muhasebe butonunu gizle
+                    accountingBtn.classList.add('hidden');
+                    // Eğer yanlışlıkla o sayfada kaldıysa ana sayfaya yönlendir
+                    showModule('home');
+                } else {
+                    // Sen girdiysen butonu göster
+                    accountingBtn.classList.remove('hidden');
+                }
+
                 loadData();
             } else {
+                // Giriş yoksa giriş ekranına at
+                dashboardScreen.classList.add('hidden');
                 loginPage.classList.remove('hidden');
-                mainDashboard.classList.add('hidden');
             }
         });
 
