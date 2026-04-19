@@ -3,38 +3,201 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bulut Görüşme</title>
+    <title>Görüntülü Görüşme</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #000; }
-        ::-webkit-scrollbar { display: none; }
-        /* Kendi kameranı ayna gibi çevirir (daha doğal görünüm için) */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #000; margin: 0; overflow: hidden; }
+        /* Kendi kameramızı ayna gibi çeviririz */
         .mirror { transform: scaleX(-1); }
+        /* Input seçimi rengi */
+        ::selection { background: rgba(59, 130, 246, 0.5); }
     </style>
 </head>
-<body class="min-h-screen flex flex-col text-white">
+<body class="w-full h-screen relative bg-zinc-950 text-white">
 
-    <header class="p-6 text-center z-10 absolute top-0 w-full bg-gradient-to-b from-black/70 to-transparent">
-        <h1 class="text-2xl font-semibold tracking-tight">Görüntülü Görüşme</h1>
-        <p id="statusText" class="text-gray-300 text-sm mt-1">Kamerayı başlatmak için aşağıdaki butona tıkla</p>
-    </header>
+    <video id="remoteVideo" class="absolute inset-0 w-full h-full object-cover z-0 opacity-0 transition-opacity duration-1000" autoplay playsinline></video>
 
-    <main class="flex-1 relative w-full h-full flex justify-center items-center bg-gray-900 overflow-hidden">
-        <video id="remoteVideo" class="absolute w-full h-full object-cover" autoplay playsinline></video>
+    <div class="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-3 w-full px-4">
+        <div class="px-5 py-2.5 bg-white/10 backdrop-blur-md border border-white/10 rounded-full shadow-lg flex items-center gap-3 transition-all">
+            <div id="statusIndicator" class="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse shadow-[0_0_8px_rgba(250,204,21,0.8)]"></div>
+            <span id="statusText" class="text-white/90 text-sm font-medium tracking-wide">Kamera Bekleniyor</span>
+        </div>
         
-        <video id="webcamVideo" class="absolute bottom-24 right-6 w-32 md:w-48 h-48 md:h-72 object-cover bg-gray-800 rounded-2xl shadow-2xl border-2 border-gray-700 mirror z-20" autoplay playsinline muted></video>
-    </main>
+        <div id="roomCodeBox" class="hidden px-5 py-3 bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl flex flex-col items-center gap-1">
+            <span class="text-white/50 text-xs font-medium uppercase tracking-widest">Oda Kodu</span>
+            <span id="roomCodeSpan" class="text-blue-400 font-mono text-lg tracking-widest font-bold select-all"></span>
+        </div>
+    </div>
 
-    <footer class="p-6 pb-8 bg-gray-950 border-t border-gray-800 z-10 absolute bottom-0 w-full flex flex-col items-center gap-4 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+    <div id="localVideoContainer" class="absolute top-6 right-4 md:right-8 w-28 h-40 md:w-48 md:h-72 z-20 rounded-[2rem] overflow-hidden shadow-2xl border border-white/20 bg-zinc-800 transition-all duration-500 opacity-0 scale-90">
+        <video id="webcamVideo" class="w-full h-full object-cover mirror" autoplay playsinline muted></video>
+    </div>
+
+    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 w-full max-w-sm px-6 flex flex-col gap-4">
         
-        <button id="webcamButton" class="bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 px-8 rounded-full transition-all w-full max-w-sm shadow-lg shadow-blue-500/30">
-            Kamera ve Mikrofonu Aç
+        <button id="webcamButton" class="w-full py-4 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/10 text-white font-medium rounded-3xl transition-all active:scale-95 flex justify-center items-center gap-3 shadow-2xl">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            Kamerayı Aç
         </button>
 
-        <div id="callControls" class="hidden flex-col w-full max-w-sm gap-3">
-            <button id="callButton" class="bg-green-600 hover:bg-green-500 text-white font-medium py-3 px-8 rounded-full transition-all shadow-lg shadow-green-500/30">
-                Yeni Oda Oluştur
+        <div id="callControls" class="hidden w-full flex-col gap-4">
+            <button id="callButton" class="w-full py-4 bg-blue-600/90 hover:bg-blue-500 backdrop-blur-xl border border-blue-400/30 text-white font-medium rounded-3xl transition-all active:scale-95 shadow-lg shadow-blue-500/20">
+                Yeni Görüşme Başlat
             </button>
+            <div class="flex gap-2 h-14">
+                <input id="callInput" class="flex-1 bg-black/40 backdrop-blur-xl border border-white/10 text-white px-6 rounded-3xl focus:outline-none focus:border-blue-500/50 placeholder-white/30 text-center font-mono tracking-widest" placeholder="KOD GİR" />
+                <button id="answerButton" class="px-8 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/10 text-white font-medium rounded-3xl transition-all active:scale-95">
+                    Katıl
+                </button>
+            </div>
+        </div>
+
+        <button id="hangupButton" class="hidden mx-auto w-16 h-16 bg-red-500 hover:bg-red-600 text-white rounded-full transition-all active:scale-90 flex justify-center items-center shadow-lg shadow-red-500/40">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.438a1 1 0 01-.328.968l-2.382 2.14a17.293 17.293 0 007.95 7.95l2.14-2.382a1 1 0 01.968-.328l4.438.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+            </svg>
+        </button>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDcUDxYBLp97h5leXJMsFCfCS3pDq2OqaE",
+            authDomain: "notlarim-5705d.firebaseapp.com",
+            projectId: "notlarim-5705d",
+            storageBucket: "notlarim-5705d.firebasestorage.app",
+            messagingSenderId: "132462317345",
+            appId: "1:132462317345:web:86c6fb946892e681d6f860",
+            measurementId: "G-NL17KLN1S6"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const servers = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }] };
+        let pc = new RTCPeerConnection(servers);
+        let localStream = null;
+
+        // UI Elementleri
+        const webcamButton = document.getElementById('webcamButton');
+        const callButton = document.getElementById('callButton');
+        const callInput = document.getElementById('callInput');
+        const answerButton = document.getElementById('answerButton');
+        const hangupButton = document.getElementById('hangupButton');
+        const callControls = document.getElementById('callControls');
+        const statusText = document.getElementById('statusText');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const webcamVideo = document.getElementById('webcamVideo');
+        const localVideoContainer = document.getElementById('localVideoContainer');
+        const roomCodeBox = document.getElementById('roomCodeBox');
+        const roomCodeSpan = document.getElementById('roomCodeSpan');
+
+        // Durum Güncelleyici
+        function updateStatus(text, colorClass) {
+            statusText.textContent = text;
+            statusIndicator.className = `w-2.5 h-2.5 rounded-full ${colorClass}`;
+        }
+
+        pc.ontrack = (event) => {
+            remoteVideo.srcObject = event.streams[0];
+            remoteVideo.classList.remove('opacity-0');
+            updateStatus("Bağlandı", "bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]");
+        };
+
+        webcamButton.onclick = async () => {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                webcamVideo.srcObject = localStream;
+                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+                
+                // UI Animasyonları
+                localVideoContainer.classList.remove('opacity-0', 'scale-90');
+                webcamButton.classList.add('hidden');
+                callControls.classList.remove('hidden');
+                updateStatus("Kamera Hazır", "bg-blue-400");
+            } catch (error) {
+                updateStatus("Kamera Reddedildi", "bg-red-500");
+            }
+        };
+
+        callButton.onclick = async () => {
+            callControls.classList.add('hidden');
+            hangupButton.classList.remove('hidden');
+            
+            const callDoc = doc(collection(db, 'calls'));
+            const offerCandidates = collection(callDoc, 'offerCandidates');
+            const answerCandidates = collection(callDoc, 'answerCandidates');
+
+            // Oda Kodunu Göster
+            roomCodeBox.classList.remove('hidden');
+            roomCodeSpan.textContent = callDoc.id;
+            updateStatus("Katılımcı Bekleniyor...", "bg-yellow-400 animate-pulse");
+
+            pc.onicecandidate = event => { event.candidate && addDoc(offerCandidates, event.candidate.toJSON()); };
+
+            const offerDescription = await pc.createOffer();
+            await pc.setLocalDescription(offerDescription);
+            await setDoc(callDoc, { offer: { type: offerDescription.type, sdp: offerDescription.sdp } });
+
+            onSnapshot(callDoc, snapshot => {
+                const data = snapshot.data();
+                if (!pc.currentRemoteDescription && data?.answer) {
+                    pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                    roomCodeBox.classList.add('hidden');
+                }
+            });
+
+            onSnapshot(answerCandidates, snapshot => {
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'added') pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+                });
+            });
+        };
+
+        answerButton.onclick = async () => {
+            const callId = callInput.value.trim();
+            if(!callId) return;
+
+            callControls.classList.add('hidden');
+            hangupButton.classList.remove('hidden');
+            updateStatus("Bağlanıyor...", "bg-blue-400 animate-pulse");
+
+            const callDoc = doc(db, 'calls', callId);
+            const offerCandidates = collection(callDoc, 'offerCandidates');
+            const answerCandidates = collection(callDoc, 'answerCandidates');
+
+            pc.onicecandidate = event => { event.candidate && addDoc(answerCandidates, event.candidate.toJSON()); };
+
+            const callData = (await getDoc(callDoc)).data();
+            if (!callData) {
+                updateStatus("Hata: Oda Bulunamadı", "bg-red-500");
+                setTimeout(() => window.location.reload(), 2000);
+                return;
+            }
+
+            await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
+
+            const answerDescription = await pc.createAnswer();
+            await pc.setLocalDescription(answerDescription);
+            await updateDoc(callDoc, { answer: { type: answerDescription.type, sdp: answerDescription.sdp } });
+
+            onSnapshot(offerCandidates, snapshot => {
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === 'added') pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+                });
+            });
+        };
+
+        hangupButton.onclick = () => window.location.reload();
+    </script>
+</body>
+</html>            </button>
             
             <div class="flex gap-2">
                 <input id="callInput" class="flex-1 bg-gray-800 border border-gray-700 rounded-full px-5 py-3 focus:outline-none focus:border-blue-500 text-center placeholder-gray-500" placeholder="Oda Kodunu Gir" />
