@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulut Notlarım</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f5f5f7; }
+        ::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 flex justify-center text-gray-800">
+    <div class="w-full max-w-2xl bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 md:p-10 h-fit">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Bulut Notlarım ☁️</h1>
+            <span id="status" class="text-xs font-medium px-2.5 py-0.5 rounded bg-yellow-100 text-yellow-800 animate-pulse">Bağlanıyor...</span>
+        </div>
+
+        <div class="mb-10 relative">
+            <textarea id="noteInput" 
+                class="w-full h-32 p-5 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none text-lg" 
+                placeholder="Her yerden erişebileceğin bir not yaz..."></textarea>
+            <div class="flex justify-end mt-4">
+                <button id="addBtn" class="bg-black hover:bg-gray-800 text-white font-medium py-2.5 px-6 rounded-full transition-all shadow-md active:scale-95 disabled:opacity-50">
+                    Kaydet
+                </button>
+            </div>
+        </div>
+
+        <div id="notesList" class="space-y-4"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // Senin projene özel ayarlar buraya eklendi!
+        const firebaseConfig = {
+            apiKey: "AIzaSyDcUDxYBLp97h5leXJMsFCfCS3pDq2OqaE",
+            authDomain: "notlarim-5705d.firebaseapp.com",
+            projectId: "notlarim-5705d",
+            storageBucket: "notlarim-5705d.firebasestorage.app",
+            messagingSenderId: "132462317345",
+            appId: "1:132462317345:web:86c6fb946892e681d6f860",
+            measurementId: "G-NL17KLN1S6"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        const noteInput = document.getElementById('noteInput');
+        const addBtn = document.getElementById('addBtn');
+        const notesList = document.getElementById('notesList');
+        const statusBadge = document.getElementById('status');
+
+        const q = query(collection(db, "notes"), orderBy("createdAt", "desc"));
+        
+        onSnapshot(q, (snapshot) => {
+            statusBadge.textContent = "Bağlı (Canlı)";
+            statusBadge.className = "text-xs font-medium px-2.5 py-0.5 rounded bg-green-100 text-green-800";
+            
+            notesList.innerHTML = '';
+            if (snapshot.empty) {
+                notesList.innerHTML = '<p class="text-gray-400 text-center py-4">Henüz hiç bulut notu eklemedin.</p>';
+                return;
+            }
+
+            snapshot.forEach((docSnap) => {
+                const note = docSnap.data();
+                const id = docSnap.id;
+                
+                const noteDiv = document.createElement('div');
+                noteDiv.className = 'bg-gray-50 p-5 rounded-2xl border border-gray-100 flex justify-between items-start group hover:bg-gray-100 transition-colors duration-200';
+                
+                const dateObj = note.createdAt ? note.createdAt.toDate() : new Date();
+                const dateStr = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' });
+
+                noteDiv.innerHTML = `
+                    <div class="w-full">
+                        <div class="pr-4 whitespace-pre-wrap text-gray-700 text-lg">${note.text}</div>
+                        <div class="text-xs text-gray-400 mt-2 font-medium">${dateStr}</div>
+                    </div>
+                    <button data-id="${id}" class="delete-btn text-red-400 hover:text-red-600 bg-white p-2 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all active:scale-90 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+                notesList.appendChild(noteDiv);
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.target.getAttribute('data-id');
+                    await deleteDoc(doc(db, "notes", id));
+                });
+            });
+        }, (error) => {
+            console.error("Firebase Hatası:", error);
+            statusBadge.textContent = "Bağlantı Koptu";
+            statusBadge.className = "text-xs font-medium px-2.5 py-0.5 rounded bg-red-100 text-red-800";
+        });
+
+        addBtn.addEventListener('click', async () => {
+            const text = noteInput.value.trim();
+            if (text) {
+                noteInput.value = ''; 
+                try {
+                    await addDoc(collection(db, "notes"), {
+                        text: text,
+                        createdAt: serverTimestamp()
+                    });
+                } catch (e) {
+                    alert("Not kaydedilemedi! Bağlantını kontrol et.");
+                }
+            }
+        });
+
+        noteInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                addBtn.click();
+            }
+        });
+    </script>
+</body>
+</html>
