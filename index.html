@@ -3,364 +3,286 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Görüntülü Görüşme</title>
+    <title>Yıldız Kurs | Yönetim Sistemi</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #000; margin: 0; overflow: hidden; }
-        /* Kendi kameramızı ayna gibi çeviririz */
-        .mirror { transform: scaleX(-1); }
-        /* Input seçimi rengi */
-        ::selection { background: rgba(59, 130, 246, 0.5); }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', -apple-system, sans-serif; background-color: #fbfbfd; color: #1d1d1f; }
+        .glass { background: rgba(255, 255, 255, 0.72); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border: 1px solid rgba(255, 255, 255, 0.3); }
+        .sidebar-item { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sidebar-item:hover { background: rgba(0, 122, 255, 0.1); color: #007aff; }
+        .sidebar-active { background: rgba(0, 122, 255, 0.15); color: #007aff; font-weight: 600; }
+        .apple-btn { transition: all 0.3s ease; }
+        .apple-btn:active { transform: scale(0.96); }
+        .card-shadow { shadow: 0 4px 24px rgba(0,0,0,0.04); }
+        input, select, textarea { border: 1px solid #d2d2d7; border-radius: 12px; padding: 12px 16px; transition: all 0.2s; }
+        input:focus { border-color: #007aff; outline: none; ring: 4px rgba(0,122,255,0.1); }
     </style>
 </head>
-<body class="w-full h-screen relative bg-zinc-950 text-white">
+<body class="h-screen overflow-hidden flex bg-[#f5f5f7]">
 
-    <video id="remoteVideo" class="absolute inset-0 w-full h-full object-cover z-0 opacity-0 transition-opacity duration-1000" autoplay playsinline></video>
-
-    <div class="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-3 w-full px-4">
-        <div class="px-5 py-2.5 bg-white/10 backdrop-blur-md border border-white/10 rounded-full shadow-lg flex items-center gap-3 transition-all">
-            <div id="statusIndicator" class="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse shadow-[0_0_8px_rgba(250,204,21,0.8)]"></div>
-            <span id="statusText" class="text-white/90 text-sm font-medium tracking-wide">Kamera Bekleniyor</span>
-        </div>
-        
-        <div id="roomCodeBox" class="hidden px-5 py-3 bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl flex flex-col items-center gap-1">
-            <span class="text-white/50 text-xs font-medium uppercase tracking-widest">Oda Kodu</span>
-            <span id="roomCodeSpan" class="text-blue-400 font-mono text-lg tracking-widest font-bold select-all"></span>
+    <div id="loginPage" class="fixed inset-0 z-[100] flex items-center justify-center bg-white">
+        <div class="w-full max-w-sm p-8 text-center">
+            <img src="yildiz-kurs.png" alt="Logo" class="w-20 h-20 mx-auto mb-8 rounded-2xl shadow-xl">
+            <h1 class="text-3xl font-bold tracking-tight mb-2">Yıldız Kurs</h1>
+            <p class="text-gray-500 mb-10 text-sm">Yönetim Paneline Giriş Yapın</p>
+            
+            <form id="loginForm" class="space-y-4 text-left">
+                <div>
+                    <label class="text-xs font-semibold text-gray-400 ml-1 uppercase">E-Posta</label>
+                    <input type="email" id="email" class="w-full mt-1 bg-[#f5f5f7] border-none" placeholder="admin@yildizkurs.com" required>
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-400 ml-1 uppercase">Şifre</label>
+                    <input type="password" id="password" class="w-full mt-1 bg-[#f5f5f7] border-none" placeholder="••••••" required>
+                </div>
+                <button type="submit" class="w-full bg-[#007aff] text-white py-4 rounded-2xl font-semibold apple-btn shadow-lg shadow-blue-500/20 mt-6">Giriş Yap</button>
+                <p id="loginError" class="text-red-500 text-xs text-center mt-4 hidden"></p>
+            </form>
         </div>
     </div>
 
-    <div id="localVideoContainer" class="absolute top-6 right-4 md:right-8 w-28 h-40 md:w-48 md:h-72 z-20 rounded-[2rem] overflow-hidden shadow-2xl border border-white/20 bg-zinc-800 transition-all duration-500 opacity-0 scale-90">
-        <video id="webcamVideo" class="w-full h-full object-cover mirror" autoplay playsinline muted></video>
-    </div>
-
-    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 w-full max-w-sm px-6 flex flex-col gap-4">
+    <div id="mainDashboard" class="hidden w-full h-full flex opacity-0 transition-opacity duration-1000">
         
-        <button id="webcamButton" class="w-full py-4 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/10 text-white font-medium rounded-3xl transition-all active:scale-95 flex justify-center items-center gap-3 shadow-2xl">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-            Kamerayı Aç
-        </button>
-
-        <div id="callControls" class="hidden w-full flex-col gap-4">
-            <button id="callButton" class="w-full py-4 bg-blue-600/90 hover:bg-blue-500 backdrop-blur-xl border border-blue-400/30 text-white font-medium rounded-3xl transition-all active:scale-95 shadow-lg shadow-blue-500/20">
-                Yeni Görüşme Başlat
-            </button>
-            <div class="flex gap-2 h-14">
-                <input id="callInput" class="flex-1 bg-black/40 backdrop-blur-xl border border-white/10 text-white px-6 rounded-3xl focus:outline-none focus:border-blue-500/50 placeholder-white/30 text-center font-mono tracking-widest" placeholder="KOD GİR" />
-                <button id="answerButton" class="px-8 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/10 text-white font-medium rounded-3xl transition-all active:scale-95">
-                    Katıl
-                </button>
+        <aside class="w-72 glass h-[calc(100vh-24px)] m-3 rounded-[2.5rem] flex flex-col p-6 shadow-xl border-r">
+            <div class="flex items-center gap-3 px-4 mb-10">
+                <img src="yildiz-kurs.png" class="w-10 h-10 rounded-xl">
+                <span class="font-bold text-xl tracking-tight">Yıldız Kurs</span>
             </div>
+
+            <nav class="flex-1 space-y-2">
+                <button onclick="showModule('home')" class="sidebar-item sidebar-active w-full flex items-center gap-4 px-5 py-4 rounded-2xl">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                    Genel Bakış
+                </button>
+                <button onclick="showModule('students')" class="sidebar-item w-full flex items-center gap-4 px-5 py-4 rounded-2xl">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    Öğrenci Kayıt
+                </button>
+                <button onclick="showModule('contracts')" class="sidebar-item w-full flex items-center gap-4 px-5 py-4 rounded-2xl">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Senet & Sözleşme
+                </button>
+                <button onclick="showModule('accounting')" class="sidebar-item w-full flex items-center gap-4 px-5 py-4 rounded-2xl">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Muhasebe
+                </button>
+            </nav>
+
+            <button id="logoutBtn" class="mt-auto flex items-center gap-4 px-5 py-4 text-red-500 hover:bg-red-50 rounded-2xl transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                Güvenli Çıkış
+            </button>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto p-10 pt-16">
+            
+            <div id="mod-home" class="mod-content">
+                <h2 class="text-4xl font-bold tracking-tight mb-8">Hoş Geldiniz</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="bg-white p-8 rounded-[2rem] shadow-sm">
+                        <p class="text-gray-400 text-sm font-semibold uppercase tracking-widest mb-2">Toplam Öğrenci</p>
+                        <h3 id="statStudents" class="text-5xl font-bold">0</h3>
+                    </div>
+                    <div class="bg-white p-8 rounded-[2rem] shadow-sm">
+                        <p class="text-gray-400 text-sm font-semibold uppercase tracking-widest mb-2">Aylık Gelir</p>
+                        <h3 class="text-5xl font-bold">₺0</h3>
+                    </div>
+                    <div class="bg-white p-8 rounded-[2rem] shadow-sm border-2 border-blue-500/10">
+                        <p class="text-blue-500 text-sm font-semibold uppercase tracking-widest mb-2">Günün Dersleri</p>
+                        <h3 class="text-5xl font-bold">0</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div id="mod-students" class="mod-content hidden">
+                <div class="flex justify-between items-center mb-10">
+                    <h2 class="text-3xl font-bold">Öğrenci Yönetimi</h2>
+                    <button onclick="toggleModal('studentModal')" class="bg-black text-white px-6 py-3 rounded-full font-medium apple-btn">+ Yeni Kayıt</button>
+                </div>
+                
+                <div class="bg-white rounded-[2rem] overflow-hidden shadow-sm">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="p-6 text-xs font-bold text-gray-400 uppercase">Öğrenci Adı</th>
+                                <th class="p-6 text-xs font-bold text-gray-400 uppercase">Veli İletişim</th>
+                                <th class="p-6 text-xs font-bold text-gray-400 uppercase">Program</th>
+                                <th class="p-6 text-xs font-bold text-gray-400 uppercase">İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentTableBody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="mod-contracts" class="mod-content hidden">
+                <h2 class="text-3xl font-bold mb-10">Senet & Sözleşme Sihirbazı</h2>
+                <div class="bg-white p-10 rounded-[2rem] shadow-sm max-w-2xl">
+                    <div class="space-y-6">
+                        <div class="grid grid-cols-2 gap-4">
+                            <input type="text" id="contractName" placeholder="Öğrenci Ad Soyad">
+                            <input type="text" id="contractTC" placeholder="T.C. Kimlik No">
+                        </div>
+                        <input type="number" id="contractAmount" class="w-full" placeholder="Toplam Sözleşme Tutarı (₺)">
+                        <input type="number" id="contractInstallments" class="w-full" placeholder="Taksit Sayısı">
+                        <button onclick="generateContract()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-500/20">BELGELERİ OLUŞTUR VE YAZDIR</button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <div id="studentModal" class="fixed inset-0 z-[110] hidden bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass w-full max-w-lg p-10 rounded-[2.5rem] shadow-2xl">
+            <h3 class="text-2xl font-bold mb-6">Yeni Öğrenci Kaydı</h3>
+            <form id="addStudentForm" class="space-y-4">
+                <input type="text" id="sName" class="w-full" placeholder="Ad Soyad" required>
+                <input type="tel" id="sPhone" class="w-full" placeholder="Veli Telefon" required>
+                <select id="sProgram" class="w-full">
+                    <option value="YKS Birebir">YKS Birebir Özel Ders</option>
+                    <option value="LGS Hazırlık">LGS Hazırlık</option>
+                    <option value="Ara Sınıf">Ara Sınıf Takviye</option>
+                </select>
+                <div class="flex gap-4 pt-4">
+                    <button type="button" onclick="toggleModal('studentModal')" class="flex-1 py-4 text-gray-500 font-bold">İptal</button>
+                    <button type="submit" class="flex-1 py-4 bg-black text-white rounded-2xl font-bold apple-btn">Kaydet</button>
+                </div>
+            </form>
         </div>
-
-        <button id="hangupButton" class="hidden mx-auto w-16 h-16 bg-red-500 hover:bg-red-600 text-white rounded-full transition-all active:scale-90 flex justify-center items-center shadow-lg shadow-red-500/40">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.438a1 1 0 01-.328.968l-2.382 2.14a17.293 17.293 0 007.95 7.95l2.14-2.382a1 1 0 01.968-.328l4.438.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-            </svg>
-        </button>
-
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, addDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+        // Senin Firebase Konfigürasyonun
         const firebaseConfig = {
             apiKey: "AIzaSyDcUDxYBLp97h5leXJMsFCfCS3pDq2OqaE",
             authDomain: "notlarim-5705d.firebaseapp.com",
             projectId: "notlarim-5705d",
             storageBucket: "notlarim-5705d.firebasestorage.app",
             messagingSenderId: "132462317345",
-            appId: "1:132462317345:web:86c6fb946892e681d6f860",
-            measurementId: "G-NL17KLN1S6"
+            appId: "1:132462317345:web:86c6fb946892e681d6f860"
         };
 
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const db = getFirestore(app);
 
-        const servers = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }] };
-        let pc = new RTCPeerConnection(servers);
-        let localStream = null;
+        // --- AUTH MANTIĞI ---
+        const loginForm = document.getElementById('loginForm');
+        const loginPage = document.getElementById('loginPage');
+        const mainDashboard = document.getElementById('mainDashboard');
 
-        // UI Elementleri
-        const webcamButton = document.getElementById('webcamButton');
-        const callButton = document.getElementById('callButton');
-        const callInput = document.getElementById('callInput');
-        const answerButton = document.getElementById('answerButton');
-        const hangupButton = document.getElementById('hangupButton');
-        const callControls = document.getElementById('callControls');
-        const statusText = document.getElementById('statusText');
-        const statusIndicator = document.getElementById('statusIndicator');
-        const remoteVideo = document.getElementById('remoteVideo');
-        const webcamVideo = document.getElementById('webcamVideo');
-        const localVideoContainer = document.getElementById('localVideoContainer');
-        const roomCodeBox = document.getElementById('roomCodeBox');
-        const roomCodeSpan = document.getElementById('roomCodeSpan');
+        loginForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.innerText = "Giriş Yapılıyor...";
+            try {
+                await signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value);
+            } catch (error) {
+                document.getElementById('loginError').innerText = "Hatalı Giriş!";
+                document.getElementById('loginError').classList.remove('hidden');
+                btn.innerText = "Giriş Yap";
+            }
+        };
 
-        // Durum Güncelleyici
-        function updateStatus(text, colorClass) {
-            statusText.textContent = text;
-            statusIndicator.className = `w-2.5 h-2.5 rounded-full ${colorClass}`;
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                loginPage.classList.add('hidden');
+                mainDashboard.classList.remove('hidden');
+                setTimeout(() => mainDashboard.classList.replace('opacity-0', 'opacity-100'), 50);
+                loadData();
+            } else {
+                loginPage.classList.remove('hidden');
+                mainDashboard.classList.add('hidden');
+            }
+        });
+
+        document.getElementById('logoutBtn').onclick = () => signOut(auth);
+
+        // --- MODÜL DEĞİŞTİRME ---
+        window.showModule = (modId) => {
+            document.querySelectorAll('.mod-content').forEach(m => m.classList.add('hidden'));
+            document.getElementById('mod-' + modId).classList.remove('hidden');
+            document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('sidebar-active'));
+            event.currentTarget.classList.add('sidebar-active');
+        };
+
+        window.toggleModal = (id) => {
+            document.getElementById(id).classList.toggle('hidden');
+        };
+
+        // --- VERİ İŞLEMLERİ ---
+        function loadData() {
+            const q = query(collection(db, "students"), orderBy("createdAt", "desc"));
+            onSnapshot(q, (snapshot) => {
+                const tbody = document.getElementById('studentTableBody');
+                tbody.innerHTML = '';
+                document.getElementById('statStudents').innerText = snapshot.size;
+
+                snapshot.forEach(doc => {
+                    const s = doc.data();
+                    tbody.innerHTML += `
+                        <tr class="border-b hover:bg-gray-50 transition-colors">
+                            <td class="p-6 font-semibold">${s.name}</td>
+                            <td class="p-6 text-gray-500">${s.phone}</td>
+                            <td class="p-6"><span class="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold">${s.program}</span></td>
+                            <td class="p-6"><button class="text-gray-400 hover:text-red-500">Sil</button></td>
+                        </tr>
+                    `;
+                });
+            });
         }
 
-        pc.ontrack = (event) => {
-            remoteVideo.srcObject = event.streams[0];
-            remoteVideo.classList.remove('opacity-0');
-            updateStatus("Bağlandı", "bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]");
+        document.getElementById('addStudentForm').onsubmit = async (e) => {
+            e.preventDefault();
+            await addDoc(collection(db, "students"), {
+                name: document.getElementById('sName').value,
+                phone: document.getElementById('sPhone').value,
+                program: document.getElementById('sProgram').value,
+                createdAt: new Date()
+            });
+            toggleModal('studentModal');
+            e.target.reset();
         };
 
-        webcamButton.onclick = async () => {
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                webcamVideo.srcObject = localStream;
-                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-                
-                // UI Animasyonları
-                localVideoContainer.classList.remove('opacity-0', 'scale-90');
-                webcamButton.classList.add('hidden');
-                callControls.classList.remove('hidden');
-                updateStatus("Kamera Hazır", "bg-blue-400");
-            } catch (error) {
-                updateStatus("Kamera Reddedildi", "bg-red-500");
-            }
-        };
-
-        callButton.onclick = async () => {
-            callControls.classList.add('hidden');
-            hangupButton.classList.remove('hidden');
+        // --- SENET ÜRETME ---
+        window.generateContract = () => {
+            const name = document.getElementById('contractName').value;
+            const amount = document.getElementById('contractAmount').value;
+            const installments = document.getElementById('contractInstallments').value;
             
-            const callDoc = doc(collection(db, 'calls'));
-            const offerCandidates = collection(callDoc, 'offerCandidates');
-            const answerCandidates = collection(callDoc, 'answerCandidates');
+            if(!name || !amount) return alert("Bilgileri doldurun!");
 
-            // Oda Kodunu Göster
-            roomCodeBox.classList.remove('hidden');
-            roomCodeSpan.textContent = callDoc.id;
-            updateStatus("Katılımcı Bekleniyor...", "bg-yellow-400 animate-pulse");
-
-            pc.onicecandidate = event => { event.candidate && addDoc(offerCandidates, event.candidate.toJSON()); };
-
-            const offerDescription = await pc.createOffer();
-            await pc.setLocalDescription(offerDescription);
-            await setDoc(callDoc, { offer: { type: offerDescription.type, sdp: offerDescription.sdp } });
-
-            onSnapshot(callDoc, snapshot => {
-                const data = snapshot.data();
-                if (!pc.currentRemoteDescription && data?.answer) {
-                    pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-                    roomCodeBox.classList.add('hidden');
-                }
-            });
-
-            onSnapshot(answerCandidates, snapshot => {
-                snapshot.docChanges().forEach(change => {
-                    if (change.type === 'added') pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-                });
-            });
-        };
-
-        answerButton.onclick = async () => {
-            const callId = callInput.value.trim();
-            if(!callId) return;
-
-            callControls.classList.add('hidden');
-            hangupButton.classList.remove('hidden');
-            updateStatus("Bağlanıyor...", "bg-blue-400 animate-pulse");
-
-            const callDoc = doc(db, 'calls', callId);
-            const offerCandidates = collection(callDoc, 'offerCandidates');
-            const answerCandidates = collection(callDoc, 'answerCandidates');
-
-            pc.onicecandidate = event => { event.candidate && addDoc(answerCandidates, event.candidate.toJSON()); };
-
-            const callData = (await getDoc(callDoc)).data();
-            if (!callData) {
-                updateStatus("Hata: Oda Bulunamadı", "bg-red-500");
-                setTimeout(() => window.location.reload(), 2000);
-                return;
-            }
-
-            await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
-
-            const answerDescription = await pc.createAnswer();
-            await pc.setLocalDescription(answerDescription);
-            await updateDoc(callDoc, { answer: { type: answerDescription.type, sdp: answerDescription.sdp } });
-
-            onSnapshot(offerCandidates, snapshot => {
-                snapshot.docChanges().forEach(change => {
-                    if (change.type === 'added') pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-                });
-            });
-        };
-
-        hangupButton.onclick = () => window.location.reload();
-    </script>
-</body>
-</html>            </button>
-            
-            <div class="flex gap-2">
-                <input id="callInput" class="flex-1 bg-gray-800 border border-gray-700 rounded-full px-5 py-3 focus:outline-none focus:border-blue-500 text-center placeholder-gray-500" placeholder="Oda Kodunu Gir" />
-                <button id="answerButton" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 px-6 rounded-full transition-all shadow-lg shadow-indigo-500/30">
-                    Katıl
-                </button>
-            </div>
-        </div>
-
-        <button id="hangupButton" class="hidden bg-red-600 hover:bg-red-500 text-white font-medium py-3 px-8 rounded-full transition-all w-full max-w-sm shadow-lg shadow-red-500/30">
-            Görüşmeyi Sonlandır
-        </button>
-
-    </footer>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, addDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-
-        // Senin Firebase Ayarların (Tamamen sana özel)
-        const firebaseConfig = {
-            apiKey: "AIzaSyDcUDxYBLp97h5leXJMsFCfCS3pDq2OqaE",
-            authDomain: "notlarim-5705d.firebaseapp.com",
-            projectId: "notlarim-5705d",
-            storageBucket: "notlarim-5705d.firebasestorage.app",
-            messagingSenderId: "132462317345",
-            appId: "1:132462317345:web:86c6fb946892e681d6f860",
-            measurementId: "G-NL17KLN1S6"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        // WebRTC Sunucuları (Cihazları tanıştırmak için)
-        const servers = {
-            iceServers: [
-                { urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }
-            ]
-        };
-
-        let pc = new RTCPeerConnection(servers);
-        let localStream = null;
-
-        const webcamButton = document.getElementById('webcamButton');
-        const callButton = document.getElementById('callButton');
-        const callInput = document.getElementById('callInput');
-        const answerButton = document.getElementById('answerButton');
-        const hangupButton = document.getElementById('hangupButton');
-        const callControls = document.getElementById('callControls');
-        const statusText = document.getElementById('statusText');
-        const remoteVideo = document.getElementById('remoteVideo');
-        const webcamVideo = document.getElementById('webcamVideo');
-
-        // SİYAH EKRAN ÇÖZÜMÜ: Karşı tarafın videosu geldiğinde doğrudan HTML oynatıcıya bağla
-        pc.ontrack = (event) => {
-            remoteVideo.srcObject = event.streams[0];
-        };
-
-        // 1. Kamera ve Mikrofonu Başlat
-        webcamButton.onclick = async () => {
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                
-                // Kendi videomuzu ekrana ver
-                webcamVideo.srcObject = localStream;
-                
-                // Videomuzu karşıya göndermek için bağlantıya ekle
-                localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-                webcamButton.classList.add('hidden');
-                callControls.classList.remove('hidden');
-                statusText.textContent = "Hazır! Bir oda oluştur veya katıl.";
-            } catch (error) {
-                alert("Kamera izni reddedildi! Tarayıcı ayarlarından izin verdiğine emin ol.");
-                console.error("Kamera Hatası:", error);
-            }
-        };
-
-        // 2. Yeni Oda Oluştur (Arayan Kişi)
-        callButton.onclick = async () => {
-            callControls.classList.add('hidden');
-            hangupButton.classList.remove('hidden');
-            
-            const callDoc = doc(collection(db, 'calls'));
-            const offerCandidates = collection(callDoc, 'offerCandidates');
-            const answerCandidates = collection(callDoc, 'answerCandidates');
-
-            callInput.value = callDoc.id; 
-            statusText.innerHTML = `Oda Kodun: <span class="text-blue-400 font-bold tracking-widest bg-gray-800 px-2 py-1 rounded select-all">${callDoc.id}</span>`;
-
-            pc.onicecandidate = event => { 
-                event.candidate && addDoc(offerCandidates, event.candidate.toJSON()); 
-            };
-
-            const offerDescription = await pc.createOffer();
-            await pc.setLocalDescription(offerDescription);
-            await setDoc(callDoc, { offer: { type: offerDescription.type, sdp: offerDescription.sdp } });
-
-            // Karşı tarafın cevabını bekle
-            onSnapshot(callDoc, snapshot => {
-                const data = snapshot.data();
-                if (!pc.currentRemoteDescription && data?.answer) {
-                    const answerDescription = new RTCSessionDescription(data.answer);
-                    pc.setRemoteDescription(answerDescription);
-                }
-            });
-
-            // Karşı tarafın ağ bağlantı noktalarını bekle
-            onSnapshot(answerCandidates, snapshot => {
-                snapshot.docChanges().forEach(change => {
-                    if (change.type === 'added') pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-                });
-            });
-        };
-
-        // 3. Odaya Katıl (Aranan Kişi)
-        answerButton.onclick = async () => {
-            const callId = callInput.value.trim();
-            if(!callId) return alert("Lütfen bir oda kodu girin!");
-
-            callControls.classList.add('hidden');
-            hangupButton.classList.remove('hidden');
-            statusText.textContent = "Bağlanıyor...";
-
-            const callDoc = doc(db, 'calls', callId);
-            const offerCandidates = collection(callDoc, 'offerCandidates');
-            const answerCandidates = collection(callDoc, 'answerCandidates');
-
-            pc.onicecandidate = event => { 
-                event.candidate && addDoc(answerCandidates, event.candidate.toJSON()); 
-            };
-
-            const callData = (await getDoc(callDoc)).data();
-            if (!callData) return alert("Oda bulunamadı! Kodu doğru yazdığına emin ol.");
-
-            const offerDescription = callData.offer;
-            await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
-
-            const answerDescription = await pc.createAnswer();
-            await pc.setLocalDescription(answerDescription);
-            await updateDoc(callDoc, { answer: { type: answerDescription.type, sdp: answerDescription.sdp } });
-
-            onSnapshot(offerCandidates, snapshot => {
-                snapshot.docChanges().forEach(change => {
-                    if (change.type === 'added') pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-                });
-            });
-            statusText.textContent = "Görüşme Başladı";
-        };
-
-        // 4. Görüşmeyi Sonlandır
-        hangupButton.onclick = () => {
-            // Kameraları kapat
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
-            if (remoteVideo.srcObject) {
-                remoteVideo.srcObject.getTracks().forEach(track => track.stop());
-            }
-            if (pc) pc.close();
-            
-            // Sayfayı yenileyerek sistemi sıfırla
-            window.location.reload(); 
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html><head><title>Senet</title><style>
+                    body { font-family: serif; padding: 50px; line-height: 1.6; }
+                    .senet { border: 2px solid #000; padding: 30px; margin-bottom: 50px; position: relative; }
+                    .header { text-align: right; font-weight: bold; }
+                    h1 { text-align: center; text-decoration: underline; }
+                </style></head><body>
+                    <div class="senet">
+                        <div class="header">No: 2026/001 <br> Tutar: ${amount} ₺</div>
+                        <h1>EMRE MUHARRER SENET</h1>
+                        <p>İşbu senedin vadesinde Sayın <b>YILDIZ KURS</b> adına <b>${amount} Türk Lirası</b> ödeyeceğim. 
+                        Bedeli kurs ücreti olarak ahzolunmuştur.</p>
+                        <br><br>
+                        <div style="float: right; text-align: center;">
+                            <b>BORÇLU İMZA</b><br><br><br>
+                            ${name} <br> ${document.getElementById('contractTC').value}
+                        </div>
+                        <div style="clear: both;"></div>
+                    </div>
+                </body></html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
         };
     </script>
 </body>
